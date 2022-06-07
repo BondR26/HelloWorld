@@ -1,11 +1,64 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include<windows.h>
+#include<Windows.h>
 #include<iostream>
+#include<psapi.h>
+
+BOOL KillProc(const std::string& filename)
+{
+	DWORD allProc[1024], bytesNeeded, cProcesses;
+
+	LPSTR buffer = (LPSTR)malloc(1024);
+
+	unsigned int i;
+
+	bool flag = false;
+
+	HANDLE handle = NULL;
+
+	if (!EnumProcesses(allProc, sizeof(allProc), &bytesNeeded))
+	{
+		return 1;
+	}
+
+	for (int i = 0; i < bytesNeeded/sizeof(DWORD); i++)
+	{
+		handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, allProc[i]);
+
+		GetProcessImageFileNameA(handle, buffer, 1024);
+
+		if (strcmp(buffer, filename.c_str())==NULL)
+		{
+			printf("The process was found\n");
+			flag = true;
+			break;
+		}
+
+		CloseHandle(handle);
+	}
+	
+
+	if (flag)
+		TerminateProcess(handle, NULL);
+
+	if(handle != INVALID_HANDLE_VALUE)
+		WaitForSingleObject(handle, NULL);
+
+	if (handle != INVALID_HANDLE_VALUE)
+		CloseHandle(handle);
+	
+	free(buffer);
+}
 
 
 int main(int argc, char* argv[])
 {
+
+	std::string filename;
+	std::cout << "Please enter the name of the proces to kill\n";
+	std::cin >> filename;
+	KillProc(filename);
+
 	WCHAR srcFilename[CHAR_MAX];
 	WCHAR destFilename[CHAR_MAX];
 
