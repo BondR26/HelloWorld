@@ -1,2 +1,6 @@
 ﻿  main.cpp
+C:\Users\Roman\source\repos\HelloWorld\HelloW\HelloW\main.cpp(25,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\Roman\source\repos\HelloWorld\HelloW\HelloW\main.cpp(14,15): warning C4101: 'i': unreferenced local variable
+C:\Users\Roman\source\repos\HelloWorld\HelloW\HelloW\main.cpp(10,36): warning C4101: 'cProcesses': unreferenced local variable
+C:\Users\Roman\source\repos\HelloWorld\HelloW\HelloW\main.cpp(52): warning C4715: 'KillProc': not all control paths return a value
   HelloW.vcxproj -> C:\Users\Roman\source\repos\HelloWorld\HelloW\Debug\HelloW.exe
