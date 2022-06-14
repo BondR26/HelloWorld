@@ -9,32 +9,46 @@
 Запускает поток который выводит каждые 5 сек текущее время и завершается через заданное количество времени
 */
 
-#define  TO_SECONDS(x)  (x*1000)
+inline  int ToSeconds(int x)
+{
+	return x * 1000;
+}
 #define  FIVE_SEC       5000
+#define  MAX_SIZE       1024
 
 class HandleWrapper
 {
 public:
-	explicit HandleWrapper(HANDLE handle):m_Handle(handle){}
+	explicit HandleWrapper(HANDLE handle)
+	{
+		if (handle)
+			m_Handle = handle;
+		else
+			throw(1);
+	}
+
 	~HandleWrapper()
 	{
-		CloseHandle(m_Handle);
+		if(m_Handle)
+			CloseHandle(m_Handle);
 	}
 
 	HANDLE operator=(HANDLE handle)
 	{
 		if (m_Handle)
-		{
-			std::cout << "Beware prevoius handle was close\n";
 			CloseHandle(m_Handle);
-		}
 
 		m_Handle = handle;
 	}
 
 	bool operator == (HANDLE handle)
 	{
-		return this->m_Handle == handle;
+		return m_Handle == handle;
+	}
+
+	bool operator != (HANDLE handle)
+	{
+		return !(m_Handle == handle);
 	}
 
 	HANDLE GetHandle()
@@ -50,9 +64,9 @@ private:
 
 BOOL KillProc(const std::string& filename)
 {
-	DWORD allProc[1024], bytesNeeded, cProcesses;
+	DWORD allProc[MAX_SIZE], bytesNeeded, cProcesses;
 
-	LPSTR buffer = (LPSTR)malloc(1024);
+	LPSTR buffer[MAX_SIZE];
 
 	unsigned int i;
 
@@ -65,33 +79,35 @@ BOOL KillProc(const std::string& filename)
 		return 1;
 	}
 
-	for (int i = 0; i < bytesNeeded/sizeof(DWORD); i++)
+	for (int i = 0; i < bytesNeeded / sizeof(DWORD); i++)
 	{
 		handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, allProc[i]);
-
-		GetProcessImageFileNameA(handle, buffer, 1024);
-
-		if (strcmp(buffer, filename.c_str())==NULL)
+		if (handle != INVALID_HANDLE_VALUE)
 		{
-			printf("The process was found\n");
-			flag = true;
-			break;
-		}
+			GetProcessImageFileNameA(handle, buffer[0], MAX_SIZE);
 
+			if (strcmp(buffer[0], filename.c_str()) == NULL)
+			{
+				std::cout << ("The process was found\n");
+				flag = true;
+				break;
+			}
+		}
 		CloseHandle(handle);
 	}
-	
 
 	if (flag)
+	{
 		TerminateProcess(handle, NULL);
-
-	if(handle != INVALID_HANDLE_VALUE)
-		WaitForSingleObject(handle, NULL);
-
+	}
 	if (handle != INVALID_HANDLE_VALUE)
+	{
+		WaitForSingleObject(handle, NULL);
+	}
+	if (handle != INVALID_HANDLE_VALUE)
+	{
 		CloseHandle(handle);
-	
-	free(buffer);
+	}
 }
 
 
@@ -102,11 +118,11 @@ DWORD WINAPI MyThread(PVOID context)
 
 	std::cout << "Time given to us " << timestr <<std::endl;
 
-	int time = TO_SECONDS(std::stoi(timestr));
+	int time = ToSeconds(std::stoi(timestr));
 
 	while (true)
 	{
-		std::cout << "THREAD threat\n";\
+		std::cout << "THREAD threat\n";
 
 		Sleep(FIVE_SEC);
 	}
@@ -120,13 +136,20 @@ int main(int argc, char* argv[])
 	if (argv[1])
 	{
 		context = argv[1];
-
+		long long time = 0;
 		//time given to us in seconds
-		int time = std::stoi(context);
-
+		try
+		{
+			 time = std::stoi(context);
+		}
+		catch (std::invalid_argument const& ex)
+		{
+			std::cout << "std::invalid_argument::what(): " << ex.what() << '\n';
+		}
+	
 		HandleWrapper threadHandle(CreateThread(0, 0, MyThread, static_cast<PVOID>(const_cast<char*>(&context.c_str()[0])), 0, 0));
 
-		WaitForSingleObject(threadHandle.GetHandle(), TO_SECONDS(time));
+		WaitForSingleObject(threadHandle.GetHandle(), ToSeconds(time));
 	}
 
 	std::string filename;
@@ -134,24 +157,15 @@ int main(int argc, char* argv[])
 	std::cin >> filename;
 	KillProc(filename);
 
-	WCHAR srcFilename[CHAR_MAX];
-	WCHAR destFilename[CHAR_MAX];
-
-	std::cout << "Please eneter src filename\n";
-	char src[CHAR_MAX * 2];
+	std::cout << "Please enetergit src filename\n";
+	char src[MAX_SIZE];
 	std::cin >> src;
 	
-	char dest[CHAR_MAX * 2];
+	char dest[MAX_SIZE];
 	std::cout << "Please eneter dest filename\n";
 	std::cin >> dest;
-
-
-	mbstowcs(srcFilename, src, sizeof(srcFilename));
-
-	mbstowcs(destFilename, dest,sizeof(destFilename));
-
 	//Open existing file
-	HANDLE handle = CreateFile(srcFilename,
+	HANDLE handle = CreateFileA(src,
 		GENERIC_READ,
 		0,
 		0,
@@ -160,7 +174,7 @@ int main(int argc, char* argv[])
 		0);
 	if (!handle)
 	{
-		printf("File doesnt exist\n");
+		std::cout <<("File doesnt exist\n");
 		return EXIT_FAILURE;
 	}
 
@@ -168,12 +182,12 @@ int main(int argc, char* argv[])
 	DWORD fileSize = GetFileSize(handle, NULL);
 	if (fileSize == INVALID_FILE_SIZE)
 	{
-		printf("FIle size is not valid\n");
+		std::cout <<("FIle size is not valid\n");
 		return EXIT_FAILURE;
 	}
 
 	//Try to open dest file(the task is that this file doesnt exist but to create dest)
-	HANDLE destHandle = CreateFile(destFilename,
+	HANDLE destHandle = CreateFileA(dest,
 		GENERIC_READ,
 		0,
 		0,
@@ -182,12 +196,12 @@ int main(int argc, char* argv[])
 		0);
 	if (destHandle != INVALID_HANDLE_VALUE)
 	{
-		printf("File wor write already exist\n");
+		std::cout <<("File wor write already exist\n");
 		return EXIT_FAILURE;
 	}
 
 	//now we create 
-	destHandle = CreateFile(destFilename,
+	destHandle = CreateFileA(dest,
 		GENERIC_WRITE,
 		0,
 		0,
@@ -196,7 +210,7 @@ int main(int argc, char* argv[])
 		0);
 	if (destHandle == INVALID_HANDLE_VALUE)
 	{
-		printf("FIle wasnt created\n");
+		std::cout <<("FIle wasnt created\n");
 	}
 
 	DWORD totalBytes = 0;
@@ -209,7 +223,7 @@ int main(int argc, char* argv[])
 		BOOL flag = ReadFile(handle, buff, fileSize / 10, &bytesRead, NULL);
 		if (!flag)
 		{
-			printf("File wasnt read properly\n");
+			std::cout <<("File wasnt read properly\n");
 			return EXIT_FAILURE;
 		}
 
@@ -224,7 +238,7 @@ int main(int argc, char* argv[])
 			NULL);
 		if (!flag)
 		{
-			printf("File wasnt written to \n");
+			std::cout <<("File wasnt written to \n");
 
 			return EXIT_FAILURE;
 		}
