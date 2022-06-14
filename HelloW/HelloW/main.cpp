@@ -1,8 +1,52 @@
-#define _CRT_SECURE_NO_WARNINGS
+﻿#define _CRT_SECURE_NO_WARNINGS
 
 #include<Windows.h>
 #include<iostream>
 #include<psapi.h>
+#include<string>
+/*Домашка, которую можно сделать до следующего занятия:
+Напишите программу, которая через переменную окружения принимает время жизни потока в секундах. 
+Запускает поток который выводит каждые 5 сек текущее время и завершается через заданное количество времени
+*/
+
+#define  TO_SECONDS(x)  (x*1000)
+#define  FIVE_SEC       5000
+
+class HandleWrapper
+{
+public:
+	explicit HandleWrapper(HANDLE handle):m_Handle(handle){}
+	~HandleWrapper()
+	{
+		CloseHandle(m_Handle);
+	}
+
+	HANDLE operator=(HANDLE handle)
+	{
+		if (m_Handle)
+		{
+			std::cout << "Beware prevoius handle was close\n";
+			CloseHandle(m_Handle);
+		}
+
+		m_Handle = handle;
+	}
+
+	bool operator == (HANDLE handle)
+	{
+		return this->m_Handle == handle;
+	}
+
+	HANDLE GetHandle()
+	{
+		return m_Handle;
+	}
+
+private:
+
+	HANDLE m_Handle = NULL;
+};
+
 
 BOOL KillProc(const std::string& filename)
 {
@@ -51,8 +95,39 @@ BOOL KillProc(const std::string& filename)
 }
 
 
+
+DWORD WINAPI MyThread(PVOID context)
+{
+	std::string timestr = static_cast<char*>(context);
+
+	std::cout << "Time given to us " << timestr <<std::endl;
+
+	int time = TO_SECONDS(std::stoi(timestr));
+
+	while (true)
+	{
+		std::cout << "THREAD threat\n";\
+
+		Sleep(FIVE_SEC);
+	}
+
+	return NULL;
+}
+
 int main(int argc, char* argv[])
 {
+	std::string context;
+	if (argv[1])
+	{
+		context = argv[1];
+
+		//time given to us in seconds
+		int time = std::stoi(context);
+
+		HandleWrapper threadHandle(CreateThread(0, 0, MyThread, static_cast<PVOID>(const_cast<char*>(&context.c_str()[0])), 0, 0));
+
+		WaitForSingleObject(threadHandle.GetHandle(), TO_SECONDS(time));
+	}
 
 	std::string filename;
 	std::cout << "Please enter the name of the proces to kill\n";
