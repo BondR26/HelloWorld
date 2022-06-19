@@ -1,244 +1,158 @@
-﻿#define _CRT_SECURE_NO_WARNINGS
-
-#include<Windows.h>
+﻿#include<Windows.h>
+#include<processthreadsapi.h>
 #include<iostream>
-#include<psapi.h>
 #include<string>
-/*Домашка, которую можно сделать до следующего занятия:
-Напишите программу, которая через переменную окружения принимает время жизни потока в секундах. 
-Запускает поток который выводит каждые 5 сек текущее время и завершается через заданное количество времени
-*/
+#include<vector>
+#include<set>
+#include<algorithm>
+/*з. Реализовать класс Gamble, который с помощью рандома загадывает простое число.
+Класс реализует функцию MakePrediction(std::string userName, int prediction)
+С консоли пользователи вводят свои предположения, для этого мы запрашиваем у пользователя его имя и число.
+После ввода имени и числа создается поток, который вызывает MakePrediction.
+MakePrediction добавляет предсказание в мембер класса Gamble (std::map).
+Через 2 минуты после старта приложения,
+Gamble определяет победителя для этого находит ставку наиболее близкую к загаданному числу и выводит на экран.
 
-#define  TO_SECONDS(x)  (x*1000)
-#define  FIVE_SEC       5000
+Доп задача: std::map нельзя использовать многопоточно, т.е. доступ к ней должен быть синхронизирован.
+Попробуйте синхронизировать доступ используя CriticalSection из Winapi*/
 
-class HandleWrapper
+CRITICAL_SECTION            g_CritSection = { NULL };
+
+typedef std::pair<std::string, int> Attempt;
+
+struct AttemptLess
 {
-public:
-	explicit HandleWrapper(HANDLE handle):m_Handle(handle){}
-	~HandleWrapper()
-	{
-		CloseHandle(m_Handle);
-	}
-
-	HANDLE operator=(HANDLE handle)
-	{
-		if (m_Handle)
-		{
-			std::cout << "Beware prevoius handle was close\n";
-			CloseHandle(m_Handle);
-		}
-
-		m_Handle = handle;
-	}
-
-	bool operator == (HANDLE handle)
-	{
-		return this->m_Handle == handle;
-	}
-
-	HANDLE GetHandle()
-	{
-		return m_Handle;
-	}
-
-private:
-
-	HANDLE m_Handle = NULL;
+    bool operator()(const Attempt& lhs, const Attempt& rhs) const
+    {
+        return lhs.second < rhs.second;
+    }
 };
 
 
-BOOL KillProc(const std::string& filename)
+
+inline int GenerateSecond(int seconds)
 {
-	DWORD allProc[1024], bytesNeeded, cProcesses;
-
-	LPSTR buffer = (LPSTR)malloc(1024);
-
-	unsigned int i;
-
-	bool flag = false;
-
-	HANDLE handle = NULL;
-
-	if (!EnumProcesses(allProc, sizeof(allProc), &bytesNeeded))
-	{
-		return 1;
-	}
-
-	for (int i = 0; i < bytesNeeded/sizeof(DWORD); i++)
-	{
-		handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, allProc[i]);
-
-		GetProcessImageFileNameA(handle, buffer, 1024);
-
-		if (strcmp(buffer, filename.c_str())==NULL)
-		{
-			printf("The process was found\n");
-			flag = true;
-			break;
-		}
-
-		CloseHandle(handle);
-	}
-	
-
-	if (flag)
-		TerminateProcess(handle, NULL);
-
-	if(handle != INVALID_HANDLE_VALUE)
-		WaitForSingleObject(handle, NULL);
-
-	if (handle != INVALID_HANDLE_VALUE)
-		CloseHandle(handle);
-	
-	free(buffer);
+    return seconds * 1000;
 }
 
-
-
-DWORD WINAPI MyThread(PVOID context)
+class Gamble
 {
-	std::string timestr = static_cast<char*>(context);
+public:
+    Gamble()
+    {
+        srand(time(0));
+    }
+    ~Gamble() {}
 
-	std::cout << "Time given to us " << timestr <<std::endl;
+    int GenerateNext(int limit = 0)
+    {
+        if (limit == 0)
+            return m_RandNum = rand();
+        else
+            return m_RandNum = rand() % limit;
+    }
 
-	int time = TO_SECONDS(std::stoi(timestr));
+    void MakePrediction(Attempt attempt)
+    {
+        m_guesses.insert(attempt);
+    }
 
-	while (true)
-	{
-		std::cout << "THREAD threat\n";\
+    std::multiset<Attempt>::iterator SelectTheWinner()
+    {
+        std::multiset<Attempt>::iterator lowerBoundIt = {};
+        if ((lowerBoundIt = m_guesses.find(Attempt{ "Computer", m_RandNum })) != m_guesses.end())
+        {
+            return lowerBoundIt;
+        }
+        else
+        {
+            if ((lowerBoundIt = m_guesses.lower_bound(Attempt{ "Computer", m_RandNum })) != m_guesses.end())
+            {
+                if (lowerBoundIt == m_guesses.begin())
+                    return lowerBoundIt;
+                else
+                {
+                    //Here iterator we look for must be behind the searched answer;
+                    //what we do we assing below the searched iterator value and then resotre its org value
+                    std::multiset<Attempt>::iterator behindSearcheIt = --lowerBoundIt;
+                    lowerBoundIt++;
+                    if ((m_RandNum - behindSearcheIt->second) < (lowerBoundIt->second - m_RandNum))
+                        return behindSearcheIt;
+                    else
+                        return lowerBoundIt;
 
-		Sleep(FIVE_SEC);
-	}
+                }
+            }
 
-	return NULL;
+        }
+    }
+
+    long GetRandNum()
+    {
+        return m_RandNum;
+    }
+
+private:
+
+    long                                 m_RandNum = 0;
+    std::multiset<Attempt, AttemptLess>  m_guesses = {};
+};
+
+struct PredictionAndGamble
+{
+    Gamble  gamble = {};
+    Attempt usernameGamble = {};
+};
+
+DWORD WINAPI MyThread(void* context)
+{
+    Sleep(GenerateSecond(1));
+    EnterCriticalSection(&g_CritSection);
+
+    PredictionAndGamble* predAndGambl = static_cast<PredictionAndGamble*>(context);
+
+    predAndGambl->gamble.MakePrediction(predAndGambl->usernameGamble);
+
+    LeaveCriticalSection(&g_CritSection);
+
+    return EXIT_SUCCESS;
 }
 
-int main(int argc, char* argv[])
+int main()
 {
-	std::string context;
-	if (argv[1])
-	{
-		context = argv[1];
+    HANDLE                      threadHandle = NULL;
+    Gamble                      gamble = {};
+    std::string                 username = {};
+    int                         guess = 0;
+    Attempt                     usernameGuess = {};
 
-		//time given to us in seconds
-		int time = std::stoi(context);
+    gamble.GenerateNext();
+    std::cout << "THe number was generated, now you shoud try to guess it\n";
+    Sleep(GenerateSecond(1));
 
-		HandleWrapper threadHandle(CreateThread(0, 0, MyThread, static_cast<PVOID>(const_cast<char*>(&context.c_str()[0])), 0, 0));
+    std::cout << "Please enter your username ";
+    std::cin >> username;
+    std::cout << "Please enter your guess ";
+    std::cin >> guess;
 
-		WaitForSingleObject(threadHandle.GetHandle(), TO_SECONDS(time));
-	}
+    usernameGuess = Attempt{ username,guess };
+    PredictionAndGamble predAndGamble = { gamble, usernameGuess };
 
-	std::string filename;
-	std::cout << "Please enter the name of the proces to kill\n";
-	std::cin >> filename;
-	KillProc(filename);
+    InitializeCriticalSection(&g_CritSection);
 
-	WCHAR srcFilename[CHAR_MAX];
-	WCHAR destFilename[CHAR_MAX];
+    threadHandle = CreateThread(NULL, NULL, MyThread, static_cast<void*>(&predAndGamble), NULL, NULL);
+    if (threadHandle == INVALID_HANDLE_VALUE)
+        return FALSE;
+    WaitForSingleObject(threadHandle, INFINITE);
+    if (threadHandle != INVALID_HANDLE_VALUE)
+        CloseHandle(threadHandle);
 
-	std::cout << "Please eneter src filename\n";
-	char src[CHAR_MAX * 2];
-	std::cin >> src;
-	
-	char dest[CHAR_MAX * 2];
-	std::cout << "Please eneter dest filename\n";
-	std::cin >> dest;
+    predAndGamble.gamble.MakePrediction(Attempt("Motherfucker", 100500));
+    predAndGamble.gamble.MakePrediction(Attempt("John Wayne", 10000));
+    std::multiset<Attempt>::iterator it = predAndGamble.gamble.SelectTheWinner();
 
+    std::cout << "And the winner is " << it->first << " " << it->second << std::endl;
+    std::cout << "The number was " << predAndGamble.gamble.GetRandNum() << std::endl;
 
-	mbstowcs(srcFilename, src, sizeof(srcFilename));
-
-	mbstowcs(destFilename, dest,sizeof(destFilename));
-
-	//Open existing file
-	HANDLE handle = CreateFile(srcFilename,
-		GENERIC_READ,
-		0,
-		0,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		0);
-	if (!handle)
-	{
-		printf("File doesnt exist\n");
-		return EXIT_FAILURE;
-	}
-
-	
-	DWORD fileSize = GetFileSize(handle, NULL);
-	if (fileSize == INVALID_FILE_SIZE)
-	{
-		printf("FIle size is not valid\n");
-		return EXIT_FAILURE;
-	}
-
-	//Try to open dest file(the task is that this file doesnt exist but to create dest)
-	HANDLE destHandle = CreateFile(destFilename,
-		GENERIC_READ,
-		0,
-		0,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		0);
-	if (destHandle != INVALID_HANDLE_VALUE)
-	{
-		printf("File wor write already exist\n");
-		return EXIT_FAILURE;
-	}
-
-	//now we create 
-	destHandle = CreateFile(destFilename,
-		GENERIC_WRITE,
-		0,
-		0,
-		CREATE_NEW,
-		FILE_ATTRIBUTE_NORMAL,
-		0);
-	if (destHandle == INVALID_HANDLE_VALUE)
-	{
-		printf("FIle wasnt created\n");
-	}
-
-	DWORD totalBytes = 0;
-	DWORD bytesRead = 0;
-	DWORD bytesWritten = 0;
-	PVOID buff = malloc(fileSize/10);
-
-	while (totalBytes != fileSize)
-	{
-		BOOL flag = ReadFile(handle, buff, fileSize / 10, &bytesRead, NULL);
-		if (!flag)
-		{
-			printf("File wasnt read properly\n");
-			return EXIT_FAILURE;
-		}
-
-		std::cout << (wchar_t*)buff << std::endl;
-
-		totalBytes += bytesRead;
-		
-		flag = WriteFile(destHandle,
-			buff,
-			fileSize / 10,
-			&bytesWritten,
-			NULL);
-		if (!flag)
-		{
-			printf("File wasnt written to \n");
-
-			return EXIT_FAILURE;
-		}
-	}
-
-	
-	if(handle)
-	CloseHandle(handle);
-
-	if(destHandle)
-	CloseHandle(destHandle);
-	
-	free(buff);
-
-	
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
