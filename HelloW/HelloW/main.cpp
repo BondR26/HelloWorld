@@ -22,16 +22,19 @@ Unloaded goods amount: 3
 #define             HARBOUR_CAPACITY     60
 HANDLE              g_Semaphore          = NULL;
 CRITICAL_SECTION    g_CritSection        = {};
+static int          count                = 0;
 
 DWORD WINAPI UnloadShip(void* context)
 {
+    WaitForSingleObject(g_Semaphore, INFINITE);
+ 
     EnterCriticalSection(&g_CritSection);
 
-    WaitForSingleObject(g_Semaphore, INFINITE);
-    
     int* cargoCount = static_cast<int*>(context);
 
     std::cout << "Unloaded cargo = " << *cargoCount <<std::endl;
+    std::cout << count++ << std::endl;
+
 
     ReleaseSemaphore(g_Semaphore,RELEASE_SHIP, NULL);
 
@@ -52,21 +55,17 @@ int main()
     for (int i = 0; i < HARBOUR_CAPACITY/3; i++)
     {                   
         context         = rand();
-        threads[i]      = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), CREATE_SUSPENDED, 0);
+        threads[i]      = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
+        Sleep(1);
         context         = rand();
-        threads[i+20]   = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), CREATE_SUSPENDED, 0);
+        threads[i+20]   = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
+        Sleep(1);
         context         = rand();
-        threads[i + 40] = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), CREATE_SUSPENDED, 0);
-
+        threads[i + 40] = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
+        Sleep(1);
     }
 
-
-    for (int i = 0; i < HARBOUR_CAPACITY; i++)
-    {
-        ResumeThread(threads[i]);
-    }
-
-    WaitForMultipleObjects(POSSIBLE_TO_EXCEPT, threads, TRUE, INFINITE);
+    WaitForMultipleObjects(HARBOUR_CAPACITY, threads, TRUE, INFINITE);
 
     CloseHandle(g_Semaphore);
     for (int i = 0; i < HARBOUR_CAPACITY; i++)
