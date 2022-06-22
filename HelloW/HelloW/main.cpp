@@ -9,236 +9,70 @@
 Запускает поток который выводит каждые 5 сек текущее время и завершается через заданное количество времени
 */
 
-#define  TO_SECONDS(x)  (x*1000)
-#define  FIVE_SEC       5000
+/*HW
+Есть функция UnloadTheShip которая эмитирует разгрузку корабля и выводит информацию о колличестве разгруженного груза (корабль вмещает 1000 ед), например:
+Unloaded goods amount: 2
+Unloaded goods amount: 3
+...
+У нас есть причал, который может принять на разгрузку не более 3х кораблей. Вам необходимо реализовать логику разгрузки 50 кораблей (1 поток обрабатывает 1 корабль)
+*/
 
-class HandleWrapper
+#define             RELEASE_SHIP         1
+#define             POSSIBLE_TO_EXCEPT   3
+#define             HARBOUR_CAPACITY     60
+HANDLE              g_Semaphore          = NULL;
+CRITICAL_SECTION    g_CritSection        = {};
+static int          count                = 0;
+
+DWORD WINAPI UnloadShip(void* context)
 {
-public:
-	explicit HandleWrapper(HANDLE handle):m_Handle(handle){}
-	~HandleWrapper()
-	{
-		CloseHandle(m_Handle);
-	}
+    WaitForSingleObject(g_Semaphore, INFINITE);
+ 
+    EnterCriticalSection(&g_CritSection);
 
-	HANDLE operator=(HANDLE handle)
-	{
-		if (m_Handle)
-		{
-			std::cout << "Beware prevoius handle was close\n";
-			CloseHandle(m_Handle);
-		}
+    int* cargoCount = static_cast<int*>(context);
 
-		m_Handle = handle;
-	}
-
-	bool operator == (HANDLE handle)
-	{
-		return this->m_Handle == handle;
-	}
-
-	HANDLE GetHandle()
-	{
-		return m_Handle;
-	}
-
-private:
-
-	HANDLE m_Handle = NULL;
-};
+    std::cout << "Unloaded cargo = " << *cargoCount <<std::endl;
+    std::cout << count++ << std::endl;
 
 
-BOOL KillProc(const std::string& filename)
-{
-	DWORD allProc[1024], bytesNeeded, cProcesses;
+    ReleaseSemaphore(g_Semaphore,RELEASE_SHIP, NULL);
 
-	LPSTR buffer = (LPSTR)malloc(1024);
+    LeaveCriticalSection(&g_CritSection);
 
-	unsigned int i;
-
-	bool flag = false;
-
-	HANDLE handle = NULL;
-
-	if (!EnumProcesses(allProc, sizeof(allProc), &bytesNeeded))
-	{
-		return 1;
-	}
-
-	for (int i = 0; i < bytesNeeded/sizeof(DWORD); i++)
-	{
-		handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, allProc[i]);
-
-		GetProcessImageFileNameA(handle, buffer, 1024);
-
-		if (strcmp(buffer, filename.c_str())==NULL)
-		{
-			printf("The process was found\n");
-			flag = true;
-			break;
-		}
-
-		CloseHandle(handle);
-	}
-	
-
-	if (flag)
-		TerminateProcess(handle, NULL);
-
-	if(handle != INVALID_HANDLE_VALUE)
-		WaitForSingleObject(handle, NULL);
-
-	if (handle != INVALID_HANDLE_VALUE)
-		CloseHandle(handle);
-	
-	free(buffer);
+    return *cargoCount;
 }
 
-
-
-DWORD WINAPI MyThread(PVOID context)
+int main()
 {
-	std::string timestr = static_cast<char*>(context);
+    int    context            = 0;
+    HANDLE threads[HARBOUR_CAPACITY] = {};
 
-	std::cout << "Time given to us " << timestr <<std::endl;
+    srand(time(0));
+    g_Semaphore = CreateSemaphore(NULL, POSSIBLE_TO_EXCEPT, POSSIBLE_TO_EXCEPT, NULL);
+    InitializeCriticalSection(&g_CritSection);
+    
+    for (int i = 0; i < HARBOUR_CAPACITY/3; i++)
+    {                   
+        context         = rand();
+        threads[i]      = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
+        Sleep(1);
+        context         = rand();
+        threads[i+20]   = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
+        Sleep(1);
+        context         = rand();
+        threads[i + 40] = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
+        Sleep(1);
+    }
 
-	int time = TO_SECONDS(std::stoi(timestr));
+    WaitForMultipleObjects(HARBOUR_CAPACITY, threads, TRUE, INFINITE);
 
-	while (true)
-	{
-		std::cout << "THREAD threat\n";\
+    CloseHandle(g_Semaphore);
+    for (int i = 0; i < HARBOUR_CAPACITY; i++)
+    {
+        CloseHandle(threads[i]);
+    }
+    DeleteCriticalSection(&g_CritSection);
 
-		Sleep(FIVE_SEC);
-	}
-
-	return NULL;
-}
-
-int main(int argc, char* argv[])
-{
-	std::string context;
-	if (argv[1])
-	{
-		context = argv[1];
-
-		//time given to us in seconds
-		int time = std::stoi(context);
-
-		HandleWrapper threadHandle(CreateThread(0, 0, MyThread, static_cast<PVOID>(const_cast<char*>(&context.c_str()[0])), 0, 0));
-
-		WaitForSingleObject(threadHandle.GetHandle(), TO_SECONDS(time));
-	}
-
-	std::string filename;
-	std::cout << "Please enter the name of the proces to kill\n";
-	std::cin >> filename;
-	KillProc(filename);
-
-	WCHAR srcFilename[CHAR_MAX];
-	WCHAR destFilename[CHAR_MAX];
-
-	std::cout << "Please eneter src filename\n";
-	char src[CHAR_MAX * 2];
-	std::cin >> src;
-	
-	char dest[CHAR_MAX * 2];
-	std::cout << "Please eneter dest filename\n";
-	std::cin >> dest;
-
-
-	mbstowcs(srcFilename, src, sizeof(srcFilename));
-
-	mbstowcs(destFilename, dest,sizeof(destFilename));
-
-	//Open existing file
-	HANDLE handle = CreateFile(srcFilename,
-		GENERIC_READ,
-		0,
-		0,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		0);
-	if (!handle)
-	{
-		printf("File doesnt exist\n");
-		return EXIT_FAILURE;
-	}
-
-	
-	DWORD fileSize = GetFileSize(handle, NULL);
-	if (fileSize == INVALID_FILE_SIZE)
-	{
-		printf("FIle size is not valid\n");
-		return EXIT_FAILURE;
-	}
-
-	//Try to open dest file(the task is that this file doesnt exist but to create dest)
-	HANDLE destHandle = CreateFile(destFilename,
-		GENERIC_READ,
-		0,
-		0,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		0);
-	if (destHandle != INVALID_HANDLE_VALUE)
-	{
-		printf("File wor write already exist\n");
-		return EXIT_FAILURE;
-	}
-
-	//now we create 
-	destHandle = CreateFile(destFilename,
-		GENERIC_WRITE,
-		0,
-		0,
-		CREATE_NEW,
-		FILE_ATTRIBUTE_NORMAL,
-		0);
-	if (destHandle == INVALID_HANDLE_VALUE)
-	{
-		printf("FIle wasnt created\n");
-	}
-
-	DWORD totalBytes = 0;
-	DWORD bytesRead = 0;
-	DWORD bytesWritten = 0;
-	PVOID buff = malloc(fileSize/10);
-
-	while (totalBytes != fileSize)
-	{
-		BOOL flag = ReadFile(handle, buff, fileSize / 10, &bytesRead, NULL);
-		if (!flag)
-		{
-			printf("File wasnt read properly\n");
-			return EXIT_FAILURE;
-		}
-
-		std::cout << (wchar_t*)buff << std::endl;
-
-		totalBytes += bytesRead;
-		
-		flag = WriteFile(destHandle,
-			buff,
-			fileSize / 10,
-			&bytesWritten,
-			NULL);
-		if (!flag)
-		{
-			printf("File wasnt written to \n");
-
-			return EXIT_FAILURE;
-		}
-	}
-
-	
-	if(handle)
-	CloseHandle(handle);
-
-	if(destHandle)
-	CloseHandle(destHandle);
-	
-	free(buff);
-
-	
 	return EXIT_SUCCESS;
 }
