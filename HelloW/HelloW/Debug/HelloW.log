@@ -1,4 +1,3 @@
 ﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\MSBuild\Microsoft\VC\v160\Microsoft.CppBuild.targets(513,5): warning MSB8028: The intermediate directory (Debug\) contains files shared from another project (HelloW.vcxproj).  This can lead to incorrect clean and rebuild behavior.
   main.cpp
-C:\Users\Roman\source\repos\HelloWorld\HelloW\HelloW\main.cpp(51,15): warning C4244: 'argument': conversion from 'time_t' to 'unsigned int', possible loss of data
   HelloW.vcxproj -> C:\Users\Roman\source\repos\HelloWorld\HelloW\Debug\WinApi.exe

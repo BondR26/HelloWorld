@@ -1,7 +1,9 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\HelloW",
+    "\\HelloW\\HelloW"
   ],
-  "SelectedNode": "\\WinApi.sln",
+  "SelectedNode": "\\HelloW\\HelloW\\HelloW.vcxproj.user",
   "PreviewInSolutionExplorer": false
 }

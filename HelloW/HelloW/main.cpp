@@ -4,75 +4,33 @@
 #include<iostream>
 #include<psapi.h>
 #include<string>
-/*Домашка, которую можно сделать до следующего занятия:
-Напишите программу, которая через переменную окружения принимает время жизни потока в секундах. 
-Запускает поток который выводит каждые 5 сек текущее время и завершается через заданное количество времени
-*/
-
-/*HW
-Есть функция UnloadTheShip которая эмитирует разгрузку корабля и выводит информацию о колличестве разгруженного груза (корабль вмещает 1000 ед), например:
-Unloaded goods amount: 2
-Unloaded goods amount: 3
-...
-У нас есть причал, который может принять на разгрузку не более 3х кораблей. Вам необходимо реализовать логику разгрузки 50 кораблей (1 поток обрабатывает 1 корабль)
-*/
-
-#define             RELEASE_SHIP         1
-#define             POSSIBLE_TO_EXCEPT   3
-#define             HARBOUR_CAPACITY     60
-HANDLE              g_Semaphore          = NULL;
-CRITICAL_SECTION    g_CritSection        = {};
-static int          count                = 0;
-
-DWORD WINAPI UnloadShip(void* context)
-{
-    WaitForSingleObject(g_Semaphore, INFINITE);
- 
-    EnterCriticalSection(&g_CritSection);
-
-    int* cargoCount = static_cast<int*>(context);
-
-    std::cout << "Unloaded cargo = " << *cargoCount <<std::endl;
-    std::cout << count++ << std::endl;
 
 
-    ReleaseSemaphore(g_Semaphore,RELEASE_SHIP, NULL);
-
-    LeaveCriticalSection(&g_CritSection);
-
-    return *cargoCount;
-}
+typedef int (*ArithmeticOp)(int, int);
 
 int main()
 {
-    int    context            = 0;
-    HANDLE threads[HARBOUR_CAPACITY] = {};
-
-    srand(time(0));
-    g_Semaphore = CreateSemaphore(NULL, POSSIBLE_TO_EXCEPT, POSSIBLE_TO_EXCEPT, NULL);
-    InitializeCriticalSection(&g_CritSection);
-    
-    for (int i = 0; i < HARBOUR_CAPACITY/3; i++)
-    {                   
-        context         = rand();
-        threads[i]      = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
-        Sleep(1);
-        context         = rand();
-        threads[i+20]   = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
-        Sleep(1);
-        context         = rand();
-        threads[i + 40] = CreateThread(0, 0, UnloadShip, static_cast<void*>(&context), 0, 0);
-        Sleep(1);
-    }
-
-    WaitForMultipleObjects(HARBOUR_CAPACITY, threads, TRUE, INFINITE);
-
-    CloseHandle(g_Semaphore);
-    for (int i = 0; i < HARBOUR_CAPACITY; i++)
+    HMODULE hmod =  LoadLibraryA("CalcDll.dll");
+    if (hmod)
     {
-        CloseHandle(threads[i]);
-    }
-    DeleteCriticalSection(&g_CritSection);
+        int ordinal = 1;
 
-	return EXIT_SUCCESS;
+        ArithmeticOp sum = static_cast<ArithmeticOp>(static_cast<void*>(GetProcAddress(hmod, (LPCSTR)ordinal)));
+
+        std::cout << "x+x = " << sum(10, 10) << std::endl;
+
+        ordinal = 2;
+        ArithmeticOp subtract = static_cast<ArithmeticOp>(static_cast<void*>(GetProcAddress(hmod, (LPCSTR)ordinal)));
+
+        std::cout << "x-x=" << subtract(10, 10) << std::endl;
+
+        ordinal = 3;
+        ArithmeticOp multiply = static_cast<ArithmeticOp>(static_cast<void*>(GetProcAddress(hmod, (LPCSTR)ordinal)));
+
+        std::cout << "x*x=" << multiply(10, 10) << std::endl;
+    }
+    else
+        std::cout << "Lib wasnt opened\n";
+
+    return EXIT_SUCCESS;
 }
