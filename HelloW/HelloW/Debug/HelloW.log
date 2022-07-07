@@ -1,3 +1,15 @@
-﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\MSBuild\Microsoft\VC\v160\Microsoft.CppBuild.targets(513,5): warning MSB8028: The intermediate directory (Debug\) contains files shared from another project (HelloW.vcxproj).  This can lead to incorrect clean and rebuild behavior.
-  main.cpp
-  HelloW.vcxproj -> C:\Users\Roman\source\repos\HelloWorld\HelloW\Debug\WinApi.exe
+﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\MSBuild\Microsoft\VC\v160\Microsoft.CppBuild.targets(513,5): warning MSB8028: The intermediate directory (Debug\) contains files shared from another project (Decrypt Task1.vcxproj, HelloW.vcxproj).  This can lead to incorrect clean and rebuild behavior.
+libeay32.lib(cryptlib.obj) : error LNK2019: unresolved external symbol __imp__DeregisterEventSource@4 referenced in function _OPENSSL_showfatal
+libeay32.lib(cryptlib.obj) : error LNK2019: unresolved external symbol __imp__RegisterEventSourceA@8 referenced in function _OPENSSL_showfatal
+libeay32.lib(cryptlib.obj) : error LNK2019: unresolved external symbol __imp__ReportEventA@36 referenced in function _OPENSSL_showfatal
+libeay32.lib(cryptlib.obj) : error LNK2019: unresolved external symbol __imp__GetProcessWindowStation@0 referenced in function _OPENSSL_isservice
+libeay32.lib(cryptlib.obj) : error LNK2019: unresolved external symbol __imp__GetUserObjectInformationW@20 referenced in function _OPENSSL_isservice
+libeay32.lib(cryptlib.obj) : error LNK2019: unresolved external symbol __imp__MessageBoxA@16 referenced in function _OPENSSL_showfatal
+libeay32.lib(rand_win.obj) : error LNK2019: unresolved external symbol __imp__CreateCompatibleBitmap@12 referenced in function _readscreen
+libeay32.lib(rand_win.obj) : error LNK2019: unresolved external symbol __imp__DeleteObject@4 referenced in function _readscreen
+libeay32.lib(rand_win.obj) : error LNK2019: unresolved external symbol __imp__GetDeviceCaps@8 referenced in function _readscreen
+libeay32.lib(rand_win.obj) : error LNK2019: unresolved external symbol __imp__GetDIBits@28 referenced in function _readscreen
+libeay32.lib(rand_win.obj) : error LNK2019: unresolved external symbol __imp__GetObjectA@12 referenced in function _readscreen
+libeay32.lib(rand_win.obj) : error LNK2019: unresolved external symbol __imp__GetDC@4 referenced in function _readscreen
+libeay32.lib(rand_win.obj) : error LNK2019: unresolved external symbol __imp__ReleaseDC@8 referenced in function _readscreen
+C:\Users\Roman\source\repos\HelloWorld\HelloW\Debug\WinApi.exe : fatal error LNK1120: 13 unresolved externals

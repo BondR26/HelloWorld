@@ -1,17 +1,21 @@
 #include "pch.h"
 #include "calc.h"
 
-int Add(int first, int second)
+extern "C" int Add(int first, int second)
 {
     return first + second;
 }
 
-int Subtract(int first, int second)
+extern "C" int Sum(int a, int b) {
+    return a + b;
+}
+
+extern "C" int Subtract(int first, int second)
 {
     return first - second;
 }
 
-int Multiply(int first, int second)
+extern "C" int Multiply(int first, int second)
 {
     return first * second;
 }
