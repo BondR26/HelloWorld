@@ -1,6 +1,0 @@
-﻿  pch.cpp
-  dllmain.cpp
-  calc.cpp
-  Generating Code...
-     Creating library C:\Users\Roman\source\repos\HelloWorld\HelloW\Debug\CalcDll.lib and object C:\Users\Roman\source\repos\HelloWorld\HelloW\Debug\CalcDll.exp
-  CalcDll.vcxproj -> C:\Users\Roman\source\repos\HelloWorld\HelloW\Debug\CalcDll.dll

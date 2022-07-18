@@ -1,5 +1,0 @@
-LIBRARY CalcDll
-EXPORTS
-    Add       @1
-    Subtract  @2
-    Multiply  @3
