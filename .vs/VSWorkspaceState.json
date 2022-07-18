@@ -1,6 +1,10 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\HelloW",
+    "\\HelloW\\Decrypting HW",
+    "\\HelloW\\HelloW"
   ],
+  "SelectedNode": "\\HelloW\\HelloW\\main.cpp",
   "PreviewInSolutionExplorer": false
 }
